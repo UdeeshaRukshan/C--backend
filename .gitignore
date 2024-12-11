@@ -1,0 +1,76 @@
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa]pp[Bb]undle[s]/
+*.app
+*.app.js
+*.app.js.map
+*.dll
+*.exe
+*.pdb
+*.nuspec
+*.snupkg
+
+# User-specific files
+*.user
+*.lock.json
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Mono auto-generated files
+mono_crash.*
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# Folder config file
+Desktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# Microsoft Visual Studio temporary files
+.vscode/
+*.vs/
+.vs/
+
+# Windows crash dump files
+*.mdmp
+*.stackdump
+
+# Rider files
+.idea/
+*.iml
+
+# macOS system files
+.DS_Store
+
+# Visual Studio Code settings
+.vscode/
+
+# NuGet Packages
+*.nupkg
+packages/
+.nuget/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Entity Framework migrations
+[Mm]igrations/
+
+# Publish output
+publish/
+*.Publish.xml
+publishprofiles/
+
+# Logs
+*.log
+logs/
