@@ -3,7 +3,7 @@ using MySql.Data.MySqlClient;
 
 public class Admin
 {
-    private string connectionString = "Server=127.0.0.1;Port=3306;Uid=root;Pwd=ubiataya122;Database=assignment;";
+    private string connectionString = "Server=127.0.0.1;Port=3306;Uid=root;Pwd=;Database=assignment;";
 
     private string username = "admin";
     private string password = "admin123"; 

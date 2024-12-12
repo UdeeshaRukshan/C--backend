@@ -6,7 +6,7 @@ namespace Assignment
     public class Employee
     {
         // Google SQL instance connection string
-        private string connectionString = "Server=127.0.0.1;Port=3306;Uid=root;Pwd=ubiataya122;Database=assignment;";
+        private string connectionString = "Server=127.0.0.1;Port=3306;Uid=root;Pwd=;Database=assignment;";
 
         public string Name { get; set; }
         
