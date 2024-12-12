@@ -6,7 +6,7 @@ public class Admin
     private string connectionString = "Server=127.0.0.1;Port=3306;Uid=root;Pwd=ubiataya122;Database=assignment;";
 
     private string username = "admin";
-    private string password = "admin123"; // Default admin credentials
+    private string password = "admin123"; 
 
     // Admin Login Method
     public bool Login(string inputUsername, string inputPassword)
@@ -15,19 +15,21 @@ public class Admin
     }
 
     // Register New Employee Method
-    public void RegisterEmployee(string name, string department, string designation, decimal salary, string location, string email, string phone, string address, bool isPermanent)
+    public void RegisterEmployee(string name, string department, string username, string password, string designation, decimal salary, string location, string email, string phone, string address, bool isPermanent)
     {
         try
         {
             using (MySqlConnection connection = new MySqlConnection(connectionString))
             {
                 connection.Open();
-                string query = "INSERT INTO Employees (Name, Department, Designation, Salary, Location, Email, Phone, Address, Is_Permanent) " +
-                               "VALUES (@Name, @Department, @Designation, @Salary, @Location, @Email, @Phone, @Address, @IsPermanent)";
+                string query = "INSERT INTO Employees (Name, Department,Username,Password, Designation, Salary, Location, Email, Phone, Address, Is_Permanent) " +
+                               "VALUES (@Name, @Department,@Username, @Password, @Designation, @Salary, @Location, @Email, @Phone, @Address, @IsPermanent)";
 
                 MySqlCommand cmd = new MySqlCommand(query, connection);
                 cmd.Parameters.AddWithValue("@Name", name);
                 cmd.Parameters.AddWithValue("@Department", department);
+                cmd.Parameters.AddWithValue("@Username", username);
+                cmd.Parameters.AddWithValue("@Password", password);
                 cmd.Parameters.AddWithValue("@Designation", designation);
                 cmd.Parameters.AddWithValue("@Salary", salary);
                 cmd.Parameters.AddWithValue("@Location", location);
@@ -54,7 +56,7 @@ public class Admin
             using (MySqlConnection connection = new MySqlConnection(connectionString))
             {
                 connection.Open();
-                string query = "UPDATE Employees SET AnnualLeaveBalance = @AnnualLeave, CasualLeaveBalance = @CasualLeave, ShortLeaveBalance = @ShortLeave WHERE EmployeeID = @EmployeeID";
+                string query = "UPDATE Employees SET AnnualLeaveBalance = @AnnualLeave, CasualLeaveBalance = @CasualLeave, ShortLeaveBalance = @ShortLeave WHERE id = @EmployeeID";
 
                 MySqlCommand command = new MySqlCommand(query, connection);
                 command.Parameters.AddWithValue("@EmployeeID", employeeId);
@@ -124,24 +126,23 @@ public class Admin
     }
 
     // Approve or Reject Leave Requests
-    public void HandleLeaveRequest(int employeeIndex, DateTime leaveDate, bool approve)
+    public void HandleLeaveRequest(int LeaveID, bool approve)
     {
         try
         {
-            int leaveId;
+            int leaveId = LeaveID;
             using (MySqlConnection connection = new MySqlConnection(connectionString))
             {
                 connection.Open();
-                string query = "SELECT LeaveID FROM LeaveRequests WHERE EmployeeIndex = @EmployeeIndex AND LeaveDate = @LeaveDate";
+                string query = "SELECT LeaveID FROM LeaveRequest WHERE LeaveID = @EmployeeID";
 
                 MySqlCommand command = new MySqlCommand(query, connection);
-                command.Parameters.AddWithValue("@EmployeeIndex", employeeIndex);
-                command.Parameters.AddWithValue("@LeaveDate", leaveDate);
+                command.Parameters.AddWithValue("@EmployeeID", LeaveID);
 
                 object result = command.ExecuteScalar();
                 if (result == null)
                 {
-                    Console.WriteLine("No leave request found for the provided employee and date.");
+                    Console.WriteLine("No leave request found for the provided ");
                     return;
                 }
 
@@ -151,7 +152,7 @@ public class Admin
             using (MySqlConnection connection = new MySqlConnection(connectionString))
             {
                 connection.Open();
-                string updateQuery = "UPDATE LeaveRequests SET Status = @Status WHERE LeaveID = @LeaveID";
+                string updateQuery = "UPDATE LeaveRequest SET Status = @Status WHERE LeaveID = @LeaveID";
 
                 MySqlCommand command = new MySqlCommand(updateQuery, connection);
                 command.Parameters.AddWithValue("@LeaveID", leaveId);
@@ -175,7 +176,7 @@ public class Admin
             using (MySqlConnection connection = new MySqlConnection(connectionString))
             {
                 connection.Open();
-                string query = "SELECT LeaveDate, LeaveType, Status FROM LeaveRequests WHERE EmployeeID = @EmployeeID AND LeaveDate BETWEEN @StartDate AND @EndDate";
+                string query = "SELECT LeaveDate, LeaveType, Status FROM LeaveRequest WHERE EmployeeID = @EmployeeID ";
 
                 MySqlCommand command = new MySqlCommand(query, connection);
                 command.Parameters.AddWithValue("@EmployeeID", employeeId);
@@ -213,7 +214,7 @@ public class Admin
         using (MySqlConnection connection = new MySqlConnection(connectionString))
         {
             connection.Open();
-            string query = "SELECT EmployeeID, LeaveDate, LeaveType, Status FROM LeaveRequests WHERE LeaveDate BETWEEN @StartDate AND @EndDate";
+            string query = "SELECT EmployeeID, LeaveID,LeaveDate, LeaveType, Status FROM LeaveRequest ";
 
             MySqlCommand command = new MySqlCommand(query, connection);
             command.Parameters.AddWithValue("@StartDate", startDate);
@@ -226,7 +227,7 @@ public class Admin
                     Console.WriteLine($"Leave history from {startDate.ToShortDateString()} to {endDate.ToShortDateString()}:");
                     while (reader.Read())
                     {
-                        Console.WriteLine($"Employee ID: {reader["EmployeeID"]}, Date: {reader["LeaveDate"]}, Type: {reader["LeaveType"]}, Status: {reader["Status"]}");
+                        Console.WriteLine($"Employee ID: {reader["EmployeeID"]},LeaveID:{reader["LeaveID"]} Date: {reader["LeaveDate"]}, Type: {reader["LeaveType"]}, Status: {reader["Status"]}");
                     }
                 }
                 else

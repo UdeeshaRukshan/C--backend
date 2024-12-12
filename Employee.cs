@@ -1,5 +1,5 @@
 using System;
-using Microsoft.Data.SqlClient; // Correct reference for SQL Server
+using MySql.Data.MySqlClient;
 
 namespace Assignment
 {
@@ -9,7 +9,8 @@ namespace Assignment
         private string connectionString = "Server=127.0.0.1;Port=3306;Uid=root;Pwd=ubiataya122;Database=assignment;";
 
         public string Name { get; set; }
-        public int EmployeeID { get; set; }
+        
+        public string EmployeeID { get; set; }
 
         public string Department { get; set; }
         public string Designation { get; set; }
@@ -23,12 +24,13 @@ namespace Assignment
         public int AnnualLeaveBalance { get; set; }
         public int CasualLeaveBalance { get; set; }
         public int ShortLeaveBalance { get; set; }
-        public DateTime RoasterStartTime { get; set; }
-        public DateTime RoasterEndTime { get; set; }
+        public DateTime? RoasterStartTime { get; set; }
+        public DateTime? RoasterEndTime { get; set; }
+
         // Constructor
-        public Employee(int employeeID,string name, string department, string designation, string salary, string location, string email, string phone, string address, bool isPermanent)
+        public Employee(string name, string department, string designation, string salary, string location, string email, string phone, string address, bool isPermanent)
         {
-            EmployeeID = employeeID;
+            
             Name = name;
             Department = department;
             Designation = designation;
@@ -37,6 +39,7 @@ namespace Assignment
             Email = email;
             Phone = phone;
             Address = address;
+            IsPermanent = isPermanent;
 
             if (isPermanent)
             {
@@ -52,245 +55,451 @@ namespace Assignment
             }
         }
 
-        public void Login(string username,string password){
-            string query = "SELECT * FROM Employee WHERE Username = @Username AND Password = @Password";
-            using (SqlConnection connection = new SqlConnection(connectionString))
+    public Employee(){
+        
+    }
+private string employeeNumber = "user";
+private string password = "user123"; 
+
+// Employee Login 
+public bool UserLogin(string empNumber, string inputPassword)
+{
+    string query = "SELECT * FROM Employees WHERE username = @username AND password = @password";
+    using (MySqlConnection connection = new MySqlConnection(connectionString))
+    {
+        connection.Open();
+
+        using (MySqlCommand command = new MySqlCommand(query, connection))
+        {
+            command.Parameters.AddWithValue("@username", empNumber);
+            command.Parameters.AddWithValue("@password", inputPassword);
+
+            using (MySqlDataReader reader = command.ExecuteReader())
             {
-                connection.Open();
-                using (SqlCommand command = new SqlCommand(query, connection))
+                if (reader.Read())
                 {
-                    command.Parameters.AddWithValue("@Username", username);
-                    command.Parameters.AddWithValue("@Password", password);
-                    using (SqlDataReader reader = command.ExecuteReader())
+                    // Check if the retrieved username and password match the inputs
+                    if (reader["username"].ToString() == empNumber && reader["password"].ToString() == inputPassword)
                     {
-                        if (reader.Read())
-                        {
-                            Console.WriteLine("Login Successful");
-                        }
-                        else
-                        {
-                            Console.WriteLine("Invalid username or password");
-                        }
+                        return true; 
+                    }
+                }
+            }
+        }
+    }
+
+    return false; 
+}
+
+
+public Employee GetEmployeeById(int id)
+{
+    string query = "SELECT * FROM Employees WHERE id = @id";
+
+    try
+    {
+        using (MySqlConnection connection = new MySqlConnection(connectionString))
+        {
+            connection.Open();
+
+            using (MySqlCommand command = new MySqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@id", id);
+
+                using (MySqlDataReader reader = command.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        // Safely handle potential NULL values
+                        string name = reader["Name"]?.ToString();
+                        string department = reader["Department"]?.ToString();
+                        string designation = reader["Designation"]?.ToString();
+                        string salary = reader["Salary"]?.ToString();
+                        string location = reader["Location"]?.ToString();
+                        string email = reader["Email"]?.ToString();
+                        string phone = reader["Phone"]?.ToString();
+                        string address = reader["Address"]?.ToString();
+                        bool isPermanent = reader["Is_Permanent"] != DBNull.Value && Convert.ToBoolean(reader["Is_Permanent"]);
+
+                        Employee employee = new Employee(
+                            name,
+                            department,
+                            designation,
+                            salary,
+                            location,
+                            email,
+                            phone,
+                            address,
+                            isPermanent
+                        );
+
+                        // Handle optional fields safely
+                        employee.AnnualLeaveBalance = reader["AnnualLeaveBalance"] != DBNull.Value
+                            ? Convert.ToInt32(reader["AnnualLeaveBalance"])
+                            : 0;
+
+                        employee.CasualLeaveBalance = reader["CasualLeaveBalance"] != DBNull.Value
+                            ? Convert.ToInt32(reader["CasualLeaveBalance"])
+                            : 0;
+
+                        employee.ShortLeaveBalance = reader["ShortLeaveBalance"] != DBNull.Value
+                            ? Convert.ToInt32(reader["ShortLeaveBalance"])
+                            : 0;
+
+                        employee.RoasterStartTime = reader["RoasterStartTime"] != DBNull.Value
+                            ? Convert.ToDateTime(reader["RoasterStartTime"])
+                            : (DateTime?)null;
+
+                        employee.RoasterEndTime = reader["RoasterEndTime"] != DBNull.Value
+                            ? Convert.ToDateTime(reader["RoasterEndTime"])
+                            : (DateTime?)null;
+
+
+                        return employee;
                     }
                 }
             }
         }
 
-// Method to apply leave
-public string ApplyLeave(string leaveType, DateTime leaveStartDate, DateTime leaveEndDate)
-{
+        return null; 
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error fetching employee: {ex.Message}");
+        return null; // Return null in case of an error
+    }
 
+}
+public string ApplyLeave(int EmployeeID, string leaveType, DateTime leaveStartDate, DateTime leaveEndDate)
+{
+    // Validate the leave dates
     if (leaveStartDate > leaveEndDate)
     {
         return "End date must be after start date.";
     }
 
-    string query = "INSERT INTO LeaveRequests (LeaveType, StartDate, EndDate, Status, EmployeeName) OUTPUT INSERTED.LeaveID VALUES (@LeaveType, @StartDate, @EndDate, @Status, @EmployeeName)";
-    
-    using (SqlConnection connection = new SqlConnection(connectionString))
+    // Check leave balance before proceeding
+    if (!CheckLeaveBalance(leaveType, leaveStartDate, leaveEndDate))
     {
-        connection.Open();
-        using (SqlCommand command = new SqlCommand(query, connection))
+        return $"Insufficient {leaveType.ToLower()} leave balance.";
+    }
+
+    // Ensure annual leave is applied 7 days in advance
+    if (leaveType == "Annual" && (leaveStartDate - DateTime.Now).Days < 7)
+    {
+        return "Annual leave must be applied at least 7 days in advance.";
+    }
+
+    string query = @"
+    INSERT INTO LeaveRequest (EmployeeID, LeaveType, LeaveStartDate, LeaveEndDate, LeaveDuration, LeaveDate, Status) 
+    VALUES (@EmployeeID, @LeaveType, @StartDate, @EndDate, @Duration, @LeaveDate, @Status);";
+
+    try
+    {
+        using (MySqlConnection connection = new MySqlConnection(connectionString))
         {
+            connection.Open();
+
+            MySqlCommand command = new MySqlCommand(query, connection);
+
+            // Calculate leave duration in days (for annual and casual leaves)
+            int duration = (leaveEndDate - leaveStartDate).Days + 1;
+
+            // Add parameters (use the passed EmployeeID here)
+            command.Parameters.AddWithValue("@EmployeeID", EmployeeID);
             command.Parameters.AddWithValue("@LeaveType", leaveType);
             command.Parameters.AddWithValue("@StartDate", leaveStartDate);
             command.Parameters.AddWithValue("@EndDate", leaveEndDate);
+            command.Parameters.AddWithValue("@LeaveDate", leaveStartDate); // You can change this if needed
+            command.Parameters.AddWithValue("@Duration", duration);
             command.Parameters.AddWithValue("@Status", "Pending");
-            command.Parameters.AddWithValue("@EmployeeName", Name);
 
-            try
+            // Execute the query
+            int rowsAffected = command.ExecuteNonQuery();
+
+            if (rowsAffected == 0)
             {
-                int leaveID = (int)command.ExecuteScalar(); // Get the inserted LeaveID from the database
-
-                // Add the leave request to the employee's LeaveRequests list
-                LeaveRequest leaveRequest = new LeaveRequest(this, leaveType, leaveStartDate, leaveEndDate, "Pending");
-                LeaveRequests.Add(leaveRequest);
-
-                // Check leave balance and update accordingly
-                if (leaveType == "Casual")
-                {
-                    if (CasualLeaveBalance > 0)
-                    {
-                        CasualLeaveBalance--;  // Update leave balance (in-memory only, update DB as needed)
-                        return $"Casual leave applied successfully. Leave ID: {leaveID}";
-                    }
-                    else
-                    {
-                        return "Insufficient casual leave balance.";
-                    }
-                }
-                else if (leaveType == "Annual")
-                {
-                    if ((leaveStartDate - DateTime.Now).Days >= 7)
-                    {
-                        if (AnnualLeaveBalance > 0)
-                        {
-                            AnnualLeaveBalance--;  // Update leave balance (in-memory only, update DB as needed)
-                            return $"Annual leave applied successfully. Leave ID: {leaveID}";
-                        }
-                        else
-                        {
-                            return "Insufficient annual leave balance.";
-                        }
-                    }
-                    else
-                    {
-                        return "Annual leave must be applied at least 7 days in advance.";
-                    }
-                }
-                else if (leaveType == "Short")
-                {
-                    if (ShortLeaveBalance > 0)
-                    {
-                        ShortLeaveBalance--;  // Update leave balance (in-memory only, update DB as needed)
-                        return $"Short leave applied successfully. Leave ID: {leaveID}";
-                    }
-                    else
-                    {
-                        return "Insufficient short leave balance.";
-                    }
-                }
-                else
-                {
-                    return "Invalid leave type.";
-                }
+                return "Failed to apply leave. Please try again.";
             }
-            catch (Exception ex)
+
+            // Retrieve the auto-generated LeaveID
+            command.CommandText = "SELECT LAST_INSERT_ID();";
+            object result = command.ExecuteScalar();
+            if (result == null || !int.TryParse(result.ToString(), out int leaveID))
             {
-                // Log the exception (optional)
-                return $"Error applying leave: {ex.Message}";
+                return "Failed to retrieve leave ID. Please try again.";
             }
+
+            // Update leave balance in the database
+            UpdateLeaveBalance(leaveType, duration);
+
+            return $"{leaveType} leave applied successfully. Leave ID: {leaveID}";
         }
+    }
+    catch (Exception ex)
+    {
+        // Log the exception
+        Console.WriteLine($"Error applying leave: {ex.Message}");
+        return $"Error applying leave: {ex.Message}";
     }
 }
 
+    // Method to check the leave balance
+    private bool CheckLeaveBalance(string leaveType, DateTime leaveStartDate, DateTime leaveEndDate)
+    {
+        int requiredBalance = (leaveEndDate - leaveStartDate).Days + 1;
 
+        if (leaveType == "Annual" && 14 >= requiredBalance)
+            return true;
+        else if (leaveType == "Casual" && 14 >= requiredBalance)
+            return true;
+        else if (leaveType == "Short" && 14 >= requiredBalance)
+            return true;
 
-        // Method to view leave status
-        public string ViewLeaveStatus(int leaveID)
+        return false;
+    }
+
+    // Method to update the leave balance after applying for leave
+    private void UpdateLeaveBalance(string leaveType, int duration)
+    {
+        string query = "";
+
+        if (leaveType == "Annual")
         {
-            string query = "SELECT LeaveType, StartDate, EndDate, Status FROM LeaveRequests WHERE LeaveID = @LeaveID";
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            AnnualLeaveBalance -= duration;
+            query = "UPDATE Employees SET AnnualLeaveBalance = @AnnualLeaveBalance WHERE id = @EmployeeID";
+        }
+        else if (leaveType == "Casual")
+        {
+            CasualLeaveBalance -= duration;
+            query = "UPDATE Employees SET CasualLeaveBalance = @CasualLeaveBalance WHERE id = @EmployeeID";
+        }
+        else if (leaveType == "Short")
+        {
+            ShortLeaveBalance -= duration;
+            query = "UPDATE Employees SET ShortLeaveBalance = @ShortLeaveBalance WHERE id = @EmployeeID";
+        }
+
+        using (MySqlConnection connection = new MySqlConnection(connectionString))
+        {
+            connection.Open();
+            MySqlCommand command = new MySqlCommand(query, connection);
+            command.Parameters.AddWithValue("@EmployeeID", 1);
+
+            if (leaveType == "Annual")
+                command.Parameters.AddWithValue("@AnnualLeaveBalance", AnnualLeaveBalance);
+            else if (leaveType == "Casual")
+                command.Parameters.AddWithValue("@CasualLeaveBalance", CasualLeaveBalance);
+            else if (leaveType == "Short")
+                command.Parameters.AddWithValue("@ShortLeaveBalance", ShortLeaveBalance);
+
+            command.ExecuteNonQuery();
+        }
+    }
+
+    // Method to add leave history after applying for leave
+    private void AddLeaveHistory(string leaveType, DateTime leaveStartDate, DateTime leaveEndDate, int duration)
+    {
+        string query = @"
+        INSERT INTO LeaveHistory (EmployeeID, LeaveType, LeaveStartDate, LeaveEndDate, LeaveDuration, Status) 
+        VALUES (@EmployeeID, @LeaveType, @StartDate, @EndDate, @Duration, @Status);";
+
+        using (MySqlConnection connection = new MySqlConnection(connectionString))
+        {
+            connection.Open();
+
+            MySqlCommand command = new MySqlCommand(query, connection);
+
+            // Add parameters
+            command.Parameters.AddWithValue("@EmployeeID", 1);
+            command.Parameters.AddWithValue("@LeaveType", leaveType);
+            command.Parameters.AddWithValue("@StartDate", leaveStartDate);
+            command.Parameters.AddWithValue("@EndDate", leaveEndDate);
+            command.Parameters.AddWithValue("@Duration", duration);
+            command.Parameters.AddWithValue("@Status", "Pending");
+
+            // Execute the query
+            command.ExecuteNonQuery();
+        }
+    }
+
+public List<LeaveRequestDetails> ViewLeaveStatus(int employeeID)
+{
+    List<LeaveRequestDetails> leaveRequests = new List<LeaveRequestDetails>();
+    
+    // Query to get current leave requests
+    string currentLeaveQuery = @"
+        SELECT lr.LeaveID, lr.LeaveType, lr.LeaveStartDate, lr.LeaveEndDate, lr.LeaveDuration, lr.Status
+        FROM LeaveRequest lr
+        WHERE lr.LeaveID = @EmployeeID AND lr.Status IN ('Pending', 'Approved', 'Rejected')
+        ORDER BY lr.LeaveStartDate DESC;";
+
+    // Query to get historical leave requests
+    string historyLeaveQuery = @"
+        SELECT lh.HistoryID AS LeaveID, lh.LeaveType, lh.LeaveStartDate, lh.LeaveEndDate, lh.LeaveDuration, lh.Status
+        FROM LeaveHistory lh
+        WHERE lh.EmployeeID = @EmployeeID
+        ORDER BY lh.LeaveStartDate DESC;";
+
+    using (MySqlConnection connection = new MySqlConnection(connectionString))
+    {
+        connection.Open();
+
+        // Get current leave requests
+        using (MySqlCommand currentCommand = new MySqlCommand(currentLeaveQuery, connection))
+        {
+            currentCommand.Parameters.AddWithValue("@EmployeeID", employeeID);
+
+            using (MySqlDataReader reader = currentCommand.ExecuteReader())
             {
-                connection.Open();
-                using (SqlCommand command = new SqlCommand(query, connection))
+                while (reader.Read())
                 {
-                    command.Parameters.AddWithValue("@LeaveID", leaveID);
-                    using (SqlDataReader reader = command.ExecuteReader())
+                    LeaveRequestDetails leaveRequest = new LeaveRequestDetails
                     {
-                        if (reader.Read())
-                        {
-                            string leaveType = reader["LeaveType"].ToString();
-                            DateTime startDate = (DateTime)reader["StartDate"];
-                            DateTime endDate = (DateTime)reader["EndDate"];
-                            string status = reader["Status"].ToString();
-                            return $"Leave Status: {status} (Type: {leaveType}, Dates: {startDate.ToShortDateString()} to {endDate.ToShortDateString()})";
-                        }
-                        else
-                        {
-                            return "Leave request not found.";
-                        }
-                    }
+                        LeaveID = reader.GetInt32("LeaveID"),
+                        LeaveType = reader.GetString("LeaveType"),
+                        LeaveStartDate = reader.GetDateTime("LeaveStartDate"),
+                        LeaveEndDate = reader.GetDateTime("LeaveEndDate"),
+                        LeaveDuration = reader.GetInt32("LeaveDuration"),
+                        Status = reader.GetString("Status")
+                    };
+                    leaveRequests.Add(leaveRequest);
                 }
             }
         }
 
-        // Method to view remaining leaves
-        public void ViewRemainingLeaves()
-{
-    string query = "SELECT AnnualLeaveBalance, CasualLeaveBalance, ShortLeaveBalance FROM Employees WHERE EmployeeID = @EmployeeID";
-    using (SqlConnection connection = new SqlConnection(connectionString))
-    {
-        connection.Open();
-        using (SqlCommand command = new SqlCommand(query, connection))
+        // Get leave history
+        using (MySqlCommand historyCommand = new MySqlCommand(historyLeaveQuery, connection))
         {
-            command.Parameters.AddWithValue("@EmployeeID", EmployeeID); // Replace EmployeeID with the current employee's ID
+            historyCommand.Parameters.AddWithValue("@EmployeeID", employeeID);
 
-            using (SqlDataReader reader = command.ExecuteReader())
+            using (MySqlDataReader reader = historyCommand.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    LeaveRequestDetails leaveHistory = new LeaveRequestDetails
+                    {
+                        LeaveID = reader.GetInt32("LeaveID"),
+                        LeaveType = reader.GetString("LeaveType"),
+                        LeaveStartDate = reader.GetDateTime("LeaveStartDate"),
+                        LeaveEndDate = reader.GetDateTime("LeaveEndDate"),
+                        LeaveDuration = reader.GetInt32("LeaveDuration"),
+                        Status = reader.GetString("Status")
+                    };
+                    leaveRequests.Add(leaveHistory);
+                }
+            }
+        }
+    }
+
+    return leaveRequests;
+}
+
+        // Method to view remaining leaves
+public void ViewRemainingLeaveBalances(int employeeID)
+    {
+        string query = "SELECT AnnualLeaveBalance, CasualLeaveBalance, ShortLeaveBalance FROM Employees WHERE id = @employeeID";
+        
+        
+        using (MySqlConnection connection = new MySqlConnection(connectionString))
+        {
+            connection.Open(); // Open the connection
+            MySqlCommand cmd = new MySqlCommand(query, connection);
+
+            // Add parameter to prevent SQL injection
+            cmd.Parameters.AddWithValue("@EmployeeID", employeeID);
+
+            using (MySqlDataReader reader = cmd.ExecuteReader()) // Execute the query and read results
             {
                 if (reader.Read())
                 {
-                    int annualLeaveBalance = reader.GetInt32(0); // Get the AnnualLeaveBalance
-                    int casualLeaveBalance = reader.GetInt32(1); // Get the CasualLeaveBalance
-                    int shortLeaveBalance = reader.GetInt32(2);  // Get the ShortLeaveBalance
+                    // Get the leave balances from the result set
+                    int annualLeaveBalance = reader.GetInt32(0);
+                    int casualLeaveBalance = reader.GetInt32(1);
+                    int shortLeaveBalance = reader.GetInt32(2);
 
                     // Display the remaining leave balances
-                    Console.WriteLine($"Remaining Annual Leave: {annualLeaveBalance}");
-                    Console.WriteLine($"Remaining Casual Leave: {casualLeaveBalance}");
-                    Console.WriteLine($"Remaining Short Leave: {shortLeaveBalance}");
+                    Console.WriteLine("\nRemaining Leave Balances:");
+                    Console.WriteLine($"Annual Leave: {annualLeaveBalance} days");
+                    Console.WriteLine($"Casual Leave: {casualLeaveBalance} days");
+                    Console.WriteLine($"Short Leave: {shortLeaveBalance} days");
                 }
                 else
                 {
+                    // If no employee with the given ID is found
                     Console.WriteLine("Employee not found.");
                 }
             }
         }
     }
-}
-
-
         // Method to delete leave request
-        public string DeleteLeave(int leaveID)
+public string DeleteLeave(int leaveID)
 {
-    string query = "DELETE FROM LeaveRequests WHERE LeaveID = @LeaveID AND Status = 'Pending'";
-    using (SqlConnection connection = new SqlConnection(connectionString))
+    int EmployeeID = leaveID;
+    
+    using (MySqlConnection connection = new MySqlConnection(connectionString))
     {
         connection.Open();
-        using (SqlCommand command = new SqlCommand(query, connection))
+
+        // Start a transaction to ensure atomicity of the operations
+        using (var transaction = connection.BeginTransaction())
         {
-            command.Parameters.AddWithValue("@LeaveID", leaveID);
-
-            // Execute the DELETE query
-            int rowsAffected = command.ExecuteNonQuery();
-            if (rowsAffected > 0)
+            try
             {
-                // Retrieve the leave type for the deleted leave request
-                string leaveType = GetLeaveType(leaveID);
+                // First, delete the leave request
+                string query = "DELETE FROM LeaveRequest WHERE LeaveID = @LeaveId"; 
+                MySqlCommand cmd = new MySqlCommand(query, connection, transaction);
+                cmd.Parameters.AddWithValue("@LeaveId", EmployeeID);
 
-                // Update the in-memory balance
-                if (leaveType == "Casual")
-                    CasualLeaveBalance++;
-                else if (leaveType == "Annual")
-                    AnnualLeaveBalance++;
-                else if (leaveType == "Short")
-                    ShortLeaveBalance++;
-
-                // Persist the updated leave balance in the database
-                string updateBalanceQuery = "UPDATE Employees SET CasualLeaveBalance = @CasualLeaveBalance, AnnualLeaveBalance = @AnnualLeaveBalance, ShortLeaveBalance = @ShortLeaveBalance WHERE EmployeeID = @EmployeeID";
-                using (SqlCommand updateCommand = new SqlCommand(updateBalanceQuery, connection))
+                // Execute the DELETE query
+                int rowsAffected = cmd.ExecuteNonQuery();
+                if (rowsAffected == 0)
                 {
-                    updateCommand.Parameters.AddWithValue("@CasualLeaveBalance", CasualLeaveBalance);
-                    updateCommand.Parameters.AddWithValue("@AnnualLeaveBalance", AnnualLeaveBalance);
-                    updateCommand.Parameters.AddWithValue("@ShortLeaveBalance", ShortLeaveBalance);
-                    updateCommand.Parameters.AddWithValue("@EmployeeID", EmployeeID); // Ensure EmployeeID is available
-
-                    updateCommand.ExecuteNonQuery(); // Update leave balances in the database
+                    // If no rows were affected, return an error message
+                    return "Cannot delete leave request. It might already be approved or does not exist.";
                 }
-
                 return "Leave request deleted successfully.";
             }
-            else
+            catch (Exception ex)
             {
-                return "Cannot delete leave request. It might already be approved.";
+                // If any error occurs, roll back the transaction to maintain data integrity
+                transaction.Rollback();
+                return $"Error occurred while deleting leave: {ex.Message}";
             }
         }
     }
 }
+// Helper method to get leave type for a given leave ID
+private string GetLeaveType(int leaveID, MySqlConnection connection, MySqlTransaction transaction)
+{
+    string leaveType = null;
 
+    string query = "SELECT LeaveType FROM LeaveRequest WHERE LeaveID = @LeaveID";
+    MySqlCommand cmd = new MySqlCommand(query, connection, transaction);
+    cmd.Parameters.AddWithValue("@LeaveID", leaveID);
 
-        // Helper method to get leave type for a given leave ID
-        private string GetLeaveType(int leaveID)
-        {
-            string query = "SELECT LeaveType FROM LeaveRequests WHERE LeaveID = @LeaveID";
-            using (SqlConnection connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-                using (SqlCommand command = new SqlCommand(query, connection))
-                {
-                    command.Parameters.AddWithValue("@LeaveID", leaveID);
-                    return command.ExecuteScalar().ToString();
-                }
-            }
-        }
+    try
+    {
+        leaveType = cmd.ExecuteScalar()?.ToString(); // Execute and get the leave type
     }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error fetching leave type: {ex.Message}");
+    }
+
+    return leaveType;
+}
+
+
+}
+}
+
+    public class LeaveRequestDetails
+{
+    public int LeaveID { get; set; }
+    public string LeaveType { get; set; }
+    public DateTime LeaveStartDate { get; set; }
+    public DateTime LeaveEndDate { get; set; }
+    public int LeaveDuration { get; set; }
+    public string Status { get; set; }
 }

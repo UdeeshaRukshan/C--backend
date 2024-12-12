@@ -8,7 +8,7 @@ public class LeaveRequest
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public string Status { get; set; }
-    public Employee Employee { get; set; } // Link to the Employee class
+    public Employee Employee { get; set; } 
 
     public LeaveRequest(Employee employee, string leaveType, DateTime startDate, DateTime endDate, string status)
     {

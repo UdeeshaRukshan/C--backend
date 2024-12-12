@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using Assignment;  
 
 partial class Program
 {
@@ -18,6 +19,8 @@ partial class Program
         }
         else if (userType == "employee")
         {
+            Employee employee = new Employee();
+            
             EmployeeLogin();
         }
         else
@@ -55,10 +58,15 @@ partial class Program
         string employeeId = Console.ReadLine();
         Console.Write("Enter Password: ");
         string password = Console.ReadLine();
-
-        // For demonstration purposes, assume a valid employee is logged in
-        Console.WriteLine("Login successful!");
-        ManageEmployeeTasks();
+        Employee emp1=new Employee();
+    
+        if(emp1.UserLogin(employeeId,password)){
+            ManageEmployeeTasks();
+        }
+        else{
+            Console.WriteLine("Invalid Employee ID or Password");
+        }
+        
     }
 
     static void ManageAdminTasks(Admin admin)
@@ -122,7 +130,8 @@ partial class Program
             Console.WriteLine("1. Apply for Leave");
             Console.WriteLine("2. View Leave Status");
             Console.WriteLine("3. View Remaining Leave Balances");
-            Console.WriteLine("4. Exit");
+            Console.WriteLine("4. Delete Leave Request");
+            Console.WriteLine("5. Exit");
             Console.Write("Select an option: ");
             string choice = Console.ReadLine();
 
@@ -138,6 +147,9 @@ partial class Program
                     ViewRemainingLeaveBalances();
                     break;
                 case "4":
+                    DeleteLeaveRequest();
+                    break;
+                case "5":
                     exit = true;
                     break;
                 default:
@@ -152,6 +164,10 @@ partial class Program
     Console.WriteLine("\nRegister New Employee:");
     Console.Write("Name: ");
     string name = Console.ReadLine();
+    Console.Write("Enter a username: ");
+    string username = Console.ReadLine();
+    Console.Write("Enter a password: ");
+    string password = Console.ReadLine();
     Console.Write("Department: ");
     string department = Console.ReadLine();
     Console.Write("Designation: ");
@@ -175,7 +191,7 @@ partial class Program
     Console.Write("Is Permanent (true/false): ");
     bool isPermanent = bool.Parse(Console.ReadLine());
 
-    admin.RegisterEmployee(name, department, designation, salary, location, email, phone, address, isPermanent);
+    admin.RegisterEmployee(name, department,username,password ,designation, salary, location, email, phone, address, isPermanent);
 }
 
     static void SetLeaveBalances(Admin admin)
@@ -193,7 +209,7 @@ partial class Program
         admin.SetLeaveBalances(index, annualLeave, casualLeave, shortLeave);
     }
 
- static void SetRoasterTime(Admin admin)
+static void SetRoasterTime(Admin admin)
 {
     Console.WriteLine("\nSet Roaster Time for Employee:");
     Console.Write("Employee Index (starting from 0): ");
@@ -238,42 +254,53 @@ static DateTime GetValidDateTime(string prompt)
         Console.Write("End Date (yyyy-MM-dd): ");
         DateTime endDate = DateTime.Parse(Console.ReadLine());
 
-        // Apply leave (Assume leave is applied successfully for now)
-        Console.WriteLine("Leave applied successfully!");
+        Employee employee1= new Employee();
+        employee1.GetEmployeeById(1);
+        string x=employee1.ApplyLeave(1,leaveType, startDate, endDate);
+        Console.WriteLine(x);
+        
     }
 
     static void ViewLeaveStatus()
     {
-        // Implement viewing leave status
+       
         Console.WriteLine("\nView Leave Status:");
         Console.Write("Enter Leave ID: ");
         int leaveId = int.Parse(Console.ReadLine());
 
-        // View status (Assume status is found for now)
-        Console.WriteLine("Leave Status: Pending");
+Employee emp3 = new Employee();
+List<LeaveRequestDetails> output = emp3.ViewLeaveStatus(leaveId); 
+
+
+// Print leave request details
+Console.WriteLine("Leave Status:");
+foreach (var leave in output)
+{
+    Console.WriteLine($"Leave ID: {leave.LeaveID}, Type: {leave.LeaveType}, Start: {leave.LeaveStartDate}, End: {leave.LeaveEndDate}, Duration: {leave.LeaveDuration}, Status: {leave.Status}");
+}
+
     }
 
-    static void ViewRemainingLeaveBalances()
-    {
-        // Implement viewing remaining leave balances
-        Console.WriteLine("\nRemaining Leave Balances:");
-        Console.WriteLine("Annual Leave: 10");
-        Console.WriteLine("Casual Leave: 5");
-        Console.WriteLine("Short Leave: 2");
-    }
+static void ViewRemainingLeaveBalances()
+{
+    Console.Write("Enter Employee ID: ");
+    int employeeID = int.Parse(Console.ReadLine());  // Read employee ID input
+    
+    Employee employee = new Employee();  
+    employee.ViewRemainingLeaveBalances(employeeID);
+}
+
 
     // Admin methods for handling leave requests
     static void HandleLeaveRequest(Admin admin)
     {
         Console.WriteLine("\nApprove/Reject Leave Request:");
-        Console.Write("Enter Employee Index (starting from 0): ");
-        int employeeIndex = int.Parse(Console.ReadLine());
-        Console.Write("Enter Leave Date (yyyy-MM-dd): ");
-        DateTime leaveDate = DateTime.Parse(Console.ReadLine());
+        Console.Write("Enter Leave ID : ");
+        int LeaveId = int.Parse(Console.ReadLine());
         Console.Write("Approve or Reject? (true/false): ");
         bool approve = bool.Parse(Console.ReadLine());
 
-        admin.HandleLeaveRequest(employeeIndex, leaveDate, approve);
+        admin.HandleLeaveRequest(LeaveId, approve);
     }
 
     static void ViewEmployeeLeaveHistory(Admin admin)
@@ -288,6 +315,15 @@ static DateTime GetValidDateTime(string prompt)
 
         admin.ViewEmployeeLeaveHistory(employeeIndex, startDate, endDate);
     }
+
+static void DeleteLeaveRequest(){
+    Console.Write("Enter Leave ID: ");
+    int leaveID = int.Parse(Console.ReadLine());  // Read leave ID input
+    
+    Employee employee = new Employee();  // Create an instance of Employee
+    string result=employee.DeleteLeave(leaveID);
+    Console.WriteLine(result);
+}
 
     static void ViewAllEmployeesLeaveHistory(Admin admin)
     {
